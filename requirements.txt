@@ -4,4 +4,4 @@ pyarrow
 scikit-learn
 joblib
 streamlit
-
+matplotlib
