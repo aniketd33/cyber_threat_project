@@ -20,32 +20,50 @@ st.markdown("Autonomous Cyber Defense (Simulation)")
 
 # ---------------- DATA UPLOAD ----------------
 uploaded_file = st.file_uploader(
-    "Upload UNSW-NB15 Testing Dataset (.parquet)",
+    "Upload UNSW-NB15 Dataset (.parquet)",
     type=["parquet"]
 )
 
 if uploaded_file is None:
-    st.warning("Please upload the UNSW_NB15_testing.parquet file")
+    st.warning("Please upload the UNSW_NB15 parquet file to continue.")
     st.stop()
 
+# ---------------- LOAD DATA ----------------
 df = pd.read_parquet(uploaded_file)
-df = df.sample(3000, random_state=42)
 
-# ---------------- TRAIN MODEL (FIRST) ----------------
+# take small sample to avoid memory / timeout issues
+if len(df) > 5000:
+    df = df.sample(5000, random_state=42)
+
+# check target column
+if "attack_cat" not in df.columns:
+    st.error("Column 'attack_cat' not found in dataset.")
+    st.stop()
+
+# ---------------- TRAIN MODEL ----------------
 @st.cache_resource
 def train_model(df):
     X = df.drop(columns=["attack_cat"])
-    y = df["attack_cat"]
+    y = df["attack_cat"].astype(str)
 
+    # replace invalid values
     X = X.replace("-", np.nan)
-    X = X.dropna(axis=1, how="all")   # remove empty columns
 
+    # 🔥 CRITICAL FIXES (NO MORE ERRORS)
+    # 1. remove fully empty columns
+    X = X.dropna(axis=1, how="all")
+
+    # 2. remove constant-value columns
+    X = X.loc[:, X.nunique(dropna=True) > 1]
+
+    # identify column types
     cat_cols = X.select_dtypes(include="object").columns
     num_cols = X.select_dtypes(exclude="object").columns
 
+    # preprocessing
     preprocessor = ColumnTransformer([
         ("num", Pipeline([
-            ("imputer", SimpleImputer(strategy="mean")),
+            ("imputer", SimpleImputer(strategy="median")),
             ("scaler", StandardScaler())
         ]), num_cols),
 
@@ -58,26 +76,29 @@ def train_model(df):
     model = Pipeline([
         ("preprocess", preprocessor),
         ("classifier", RandomForestClassifier(
-            n_estimators=50,
-            random_state=42
+            n_estimators=30,
+            random_state=42,
+            n_jobs=-1
         ))
     ])
 
     model.fit(X, y)
-    return model
+    return model, X.columns  # return feature columns also
 
-# 🔥 IMPORTANT: model defined here
-model = train_model(df)
+model, feature_cols = train_model(df)
 
 # ---------------- PREDICTION ----------------
 X_pred = df.drop(columns=["attack_cat"])
 X_pred = X_pred.replace("-", np.nan)
-X_pred = X_pred.dropna(axis=1, how="all")
+
+# keep only trained features
+X_pred = X_pred[feature_cols]
 
 df["Predicted_Attack"] = model.predict(X_pred)
 
 # ---------------- METRICS ----------------
 col1, col2, col3 = st.columns(3)
+
 col1.metric("Total Records", len(df))
 col2.metric("Detected Attacks", (df["Predicted_Attack"] != "Normal").sum())
 col3.metric("Normal Traffic", (df["Predicted_Attack"] == "Normal").sum())
@@ -93,11 +114,15 @@ st.dataframe(
     use_container_width=True
 )
 
+# ---------------- FOOTER ----------------
 st.markdown("---")
 st.markdown(
     """
-    🔐 **AI Cyber Threat Prediction & Autonomous Response System**  
-    Model is trained dynamically inside the application.  
-    Academic Project
+    🔐 **AI-Based Cyber Threat Prediction & Autonomous Response System**  
+    - Dataset uploaded dynamically  
+    - Model trained inside the app  
+    - Robust preprocessing to avoid runtime errors  
+
+    *Academic Project*
     """
 )
