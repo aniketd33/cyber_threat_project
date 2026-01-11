@@ -75,7 +75,7 @@ col4.metric("Avg Threat Score", round(avg_threat_score, 2))
 # ---------------- CHART 1: PIE CHART ----------------
 st.subheader("🟠 Attack vs Normal Traffic")
 
-fig, ax = plt.subplots(figsize=(4, 4))   # 🔥 size control
+fig, ax = plt.subplots(figsize=(3.5,3.5))   # 🔥 size control
 df["Predicted_Attack"].value_counts().plot.pie(
     autopct="%1.1f%%",
     startangle=90,
@@ -134,4 +134,5 @@ st.markdown(
     *Academic Project – Stable Deployment Version*
     """
 )
+
 
