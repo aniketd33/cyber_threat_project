@@ -75,13 +75,17 @@ col4.metric("Avg Threat Score", round(avg_threat_score, 2))
 # ---------------- CHART 1: PIE CHART ----------------
 st.subheader("🟠 Attack vs Normal Traffic")
 
-fig1, ax1 = plt.subplots()
+fig, ax = plt.subplots(figsize=(4, 4))   # 🔥 size control
 df["Predicted_Attack"].value_counts().plot.pie(
     autopct="%1.1f%%",
+    startangle=90,
     ylabel="",
-    ax=ax1
+    ax=ax
 )
-st.pyplot(fig1)
+
+ax.axis("equal")   # perfect circle
+st.pyplot(fig)
+
 
 # ---------------- CHART 2: TOP ATTACK TYPES ----------------
 st.subheader("🔴 Top 5 Attack Types")
@@ -130,3 +134,4 @@ st.markdown(
     *Academic Project – Stable Deployment Version*
     """
 )
+
