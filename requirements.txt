@@ -1,18 +1,7 @@
-# Core
-python>=3.9
+pandas
+numpy
+pyarrow
+scikit-learn
+joblib
+streamlit
 
-# Data handling
-pandas>=1.5.0
-numpy>=1.23.0
-pyarrow>=10.0.0
-
-# Machine Learning
-scikit-learn>=1.2.0
-joblib>=1.2.0
-
-# Dashboard
-streamlit>=1.25.0
-
-# Visualization (optional but safe)
-matplotlib>=3.7.0
-seaborn>=0.12.0
