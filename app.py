@@ -36,7 +36,11 @@ def train_model(df):
     X = df.drop(columns=["attack_cat"])
     y = df["attack_cat"]
 
+    # clean invalid values
     X = X.replace("-", np.nan)
+
+    # 🔥 FIX: remove empty columns
+    X = X.dropna(axis=1, how="all")
 
     cat_cols = X.select_dtypes(include="object").columns
     num_cols = X.select_dtypes(exclude="object").columns
@@ -64,7 +68,6 @@ def train_model(df):
     model.fit(X, y)
     return model
 
-model = train_model(df)
 
 # ---------------- PREDICT ----------------
 X_pred = df.drop(columns=["attack_cat"])
@@ -98,3 +101,4 @@ st.markdown(
     Academic Project
     """
 )
+
