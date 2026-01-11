@@ -24,7 +24,8 @@ def load_data():
     df = pd.read_parquet("dataset/UNSW_NB15_testing.parquet")
     return df.sample(3000, random_state=42)   # small sample for fast load
 
-df = load_data()
+df = pd.read_parquet("dataset/UNSW_NB15_testing.parquet")
+
 
 # ---------------- TRAIN MODEL INSIDE APP ----------------
 @st.cache_resource
@@ -97,3 +98,4 @@ st.markdown(
     Academic Project
     """
 )
+
