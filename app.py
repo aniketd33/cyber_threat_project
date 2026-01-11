@@ -8,6 +8,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="AI Cyber Threat Dashboard",
     page_icon="🛡️",
@@ -24,23 +25,20 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file is None:
-    st.warning("Please upload the UNSW_NB15_testing.parquet file to continue.")
+    st.warning("Please upload the UNSW_NB15_testing.parquet file")
     st.stop()
 
 df = pd.read_parquet(uploaded_file)
 df = df.sample(3000, random_state=42)
 
-# ---------------- TRAIN MODEL ----------------
+# ---------------- TRAIN MODEL (FIRST) ----------------
 @st.cache_resource
 def train_model(df):
     X = df.drop(columns=["attack_cat"])
     y = df["attack_cat"]
 
-    # clean invalid values
     X = X.replace("-", np.nan)
-
-    # 🔥 FIX: remove empty columns
-    X = X.dropna(axis=1, how="all")
+    X = X.dropna(axis=1, how="all")   # remove empty columns
 
     cat_cols = X.select_dtypes(include="object").columns
     num_cols = X.select_dtypes(exclude="object").columns
@@ -68,16 +66,18 @@ def train_model(df):
     model.fit(X, y)
     return model
 
+# 🔥 IMPORTANT: model defined here
+model = train_model(df)
 
-# ---------------- PREDICT ----------------
+# ---------------- PREDICTION ----------------
 X_pred = df.drop(columns=["attack_cat"])
 X_pred = X_pred.replace("-", np.nan)
+X_pred = X_pred.dropna(axis=1, how="all")
 
 df["Predicted_Attack"] = model.predict(X_pred)
 
 # ---------------- METRICS ----------------
 col1, col2, col3 = st.columns(3)
-
 col1.metric("Total Records", len(df))
 col2.metric("Detected Attacks", (df["Predicted_Attack"] != "Normal").sum())
 col3.metric("Normal Traffic", (df["Predicted_Attack"] == "Normal").sum())
@@ -97,8 +97,7 @@ st.markdown("---")
 st.markdown(
     """
     🔐 **AI Cyber Threat Prediction & Autonomous Response System**  
-    Dataset is uploaded dynamically to avoid deployment issues.  
+    Model is trained dynamically inside the application.  
     Academic Project
     """
 )
-
