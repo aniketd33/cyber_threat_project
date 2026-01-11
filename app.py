@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+import matplotlib.pyplot as plt
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -11,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🛡️ AI-Based Cyber Threat Prediction Dashboard")
-st.markdown("Stable Version (Numeric Features Only)")
+st.markdown("Advanced Visual Analytics & Autonomous Response (Stable Version)")
 
 # ---------------- DATA UPLOAD ----------------
 uploaded_file = st.file_uploader(
@@ -34,17 +35,14 @@ if "attack_cat" not in df.columns:
     st.error("Column 'attack_cat' not found in dataset.")
     st.stop()
 
-# ---------------- SIMPLE CLEANING ----------------
-# keep ONLY numeric columns
+# ---------------- NUMERIC FEATURES ONLY ----------------
 X = df.select_dtypes(include=[np.number]).copy()
 y = df["attack_cat"].astype(str)
 
-# fill NaN with 0 (SAFE)
 X = X.fillna(0)
 
-# safety check
 if X.shape[1] == 0:
-    st.error("No numeric features available in dataset.")
+    st.error("No numeric features found.")
     st.stop()
 
 # ---------------- TRAIN MODEL ----------------
@@ -53,39 +51,82 @@ model = RandomForestClassifier(
     random_state=42,
     n_jobs=-1
 )
-
 model.fit(X, y)
 
-# ---------------- PREDICT ----------------
+# ---------------- PREDICTION ----------------
 df["Predicted_Attack"] = model.predict(X)
 
+# ---------------- THREAT SEVERITY SCORE ----------------
+# simple risk score: attack = 1, normal = 0
+df["Threat_Score"] = df["Predicted_Attack"].apply(
+    lambda x: 0 if x == "Normal" else 1
+)
+
+avg_threat_score = df["Threat_Score"].mean()
+
 # ---------------- METRICS ----------------
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 col1.metric("Total Records", len(df))
 col2.metric("Detected Attacks", (df["Predicted_Attack"] != "Normal").sum())
 col3.metric("Normal Traffic", (df["Predicted_Attack"] == "Normal").sum())
+col4.metric("Avg Threat Score", round(avg_threat_score, 2))
 
-# ---------------- CHART ----------------
-st.subheader("📊 Attack Distribution")
-st.bar_chart(df["Predicted_Attack"].value_counts())
+# ---------------- CHART 1: PIE CHART ----------------
+st.subheader("🟠 Attack vs Normal Traffic")
 
-# ---------------- TABLE ----------------
-st.subheader("📋 Sample Predictions")
+fig1, ax1 = plt.subplots()
+df["Predicted_Attack"].value_counts().plot.pie(
+    autopct="%1.1f%%",
+    ylabel="",
+    ax=ax1
+)
+st.pyplot(fig1)
+
+# ---------------- CHART 2: TOP ATTACK TYPES ----------------
+st.subheader("🔴 Top 5 Attack Types")
+
+top_attacks = df["Predicted_Attack"].value_counts().head(5)
+st.bar_chart(top_attacks)
+
+# ---------------- CHART 3: TIME-BASED CHART ----------------
+st.subheader("⏱️ Time-Based Threat Trend (Simulated)")
+
+df["time_index"] = range(len(df))
+st.line_chart(
+    df.set_index("time_index")["Threat_Score"]
+)
+
+# ---------------- SAMPLE TABLE ----------------
+st.subheader("📋 Actual vs Predicted (Sample)")
 st.dataframe(
-    df[["attack_cat", "Predicted_Attack"]].head(50),
+    df[["attack_cat", "Predicted_Attack", "Threat_Score"]].head(50),
     use_container_width=True
+)
+
+# ---------------- DOWNLOAD REPORT ----------------
+st.subheader("⬇️ Download Prediction Report")
+
+csv = df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="Download CSV Report",
+    data=csv,
+    file_name="cyber_threat_report.csv",
+    mime="text/csv"
 )
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
 st.markdown(
     """
-    🔐 **AI Cyber Threat Prediction & Autonomous Response System**  
-    - Numeric features only  
-    - No complex preprocessing  
-    - Stable deployment version  
+    🔐 **AI-Based Cyber Threat Prediction & Autonomous Response System**  
 
-    *Academic Project*
+    ✔ Machine Learning based attack detection  
+    ✔ Threat severity scoring  
+    ✔ Advanced visual analytics  
+    ✔ Downloadable security report  
+
+    *Academic Project – Stable Deployment Version*
     """
 )
