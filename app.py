@@ -8,7 +8,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 
-# ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="AI Cyber Threat Dashboard",
     page_icon="🛡️",
@@ -18,22 +17,25 @@ st.set_page_config(
 st.title("🛡️ AI-Based Cyber Threat Prediction Dashboard")
 st.markdown("Autonomous Cyber Defense (Simulation)")
 
-# ---------------- LOAD DATA ----------------
-@st.cache_data
-def load_data():
-    df = pd.read_parquet("dataset/UNSW_NB15_testing.parquet")
-    return df.sample(3000, random_state=42)   # small sample for fast load
+# ---------------- DATA UPLOAD ----------------
+uploaded_file = st.file_uploader(
+    "Upload UNSW-NB15 Testing Dataset (.parquet)",
+    type=["parquet"]
+)
 
-df = pd.read_parquet("dataset/UNSW_NB15_testing.parquet")
+if uploaded_file is None:
+    st.warning("Please upload the UNSW_NB15_testing.parquet file to continue.")
+    st.stop()
 
+df = pd.read_parquet(uploaded_file)
+df = df.sample(3000, random_state=42)
 
-# ---------------- TRAIN MODEL INSIDE APP ----------------
+# ---------------- TRAIN MODEL ----------------
 @st.cache_resource
 def train_model(df):
     X = df.drop(columns=["attack_cat"])
     y = df["attack_cat"]
 
-    # clean invalid values
     X = X.replace("-", np.nan)
 
     cat_cols = X.select_dtypes(include="object").columns
@@ -55,8 +57,7 @@ def train_model(df):
         ("preprocess", preprocessor),
         ("classifier", RandomForestClassifier(
             n_estimators=50,
-            random_state=42,
-            n_jobs=-1
+            random_state=42
         ))
     ])
 
@@ -65,7 +66,7 @@ def train_model(df):
 
 model = train_model(df)
 
-# ---------------- PREDICTION ----------------
+# ---------------- PREDICT ----------------
 X_pred = df.drop(columns=["attack_cat"])
 X_pred = X_pred.replace("-", np.nan)
 
@@ -89,13 +90,11 @@ st.dataframe(
     use_container_width=True
 )
 
-# ---------------- FOOTER ----------------
 st.markdown("---")
 st.markdown(
     """
     🔐 **AI Cyber Threat Prediction & Autonomous Response System**  
-    *Model is trained dynamically inside the application for deployment simplicity.*  
+    Dataset is uploaded dynamically to avoid deployment issues.  
     Academic Project
     """
 )
-
