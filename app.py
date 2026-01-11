@@ -25,43 +25,37 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file is None:
-    st.warning("Please upload the UNSW_NB15 parquet file to continue.")
+    st.warning("Please upload the UNSW-NB15 parquet file.")
     st.stop()
 
 # ---------------- LOAD DATA ----------------
 df = pd.read_parquet(uploaded_file)
 
-# take small sample to avoid memory / timeout issues
-if len(df) > 5000:
-    df = df.sample(5000, random_state=42)
+# small sample for stability
+if len(df) > 4000:
+    df = df.sample(4000, random_state=42)
 
-# check target column
 if "attack_cat" not in df.columns:
-    st.error("Column 'attack_cat' not found in dataset.")
+    st.error("Required column 'attack_cat' not found.")
     st.stop()
 
-# ---------------- TRAIN MODEL ----------------
-@st.cache_resource
-def train_model(df):
-    X = df.drop(columns=["attack_cat"])
-    y = df["attack_cat"].astype(str)
+# ---------------- PREP DATA ----------------
+X = df.drop(columns=["attack_cat"]).copy()
+y = df["attack_cat"].astype(str)
 
-    # replace invalid values
-    X = X.replace("-", np.nan)
+# clean invalid values
+X = X.replace("-", np.nan)
 
-    # 🔥 CRITICAL FIXES (NO MORE ERRORS)
-    # 1. remove fully empty columns
-    X = X.dropna(axis=1, how="all")
+# remove useless columns
+X = X.dropna(axis=1, how="all")
+X = X.loc[:, X.nunique(dropna=True) > 1]
 
-    # 2. remove constant-value columns
-    X = X.loc[:, X.nunique(dropna=True) > 1]
+# ---------------- BUILD PIPELINE ----------------
+cat_cols = X.select_dtypes(include="object").columns
+num_cols = X.select_dtypes(exclude="object").columns
 
-    # identify column types
-    cat_cols = X.select_dtypes(include="object").columns
-    num_cols = X.select_dtypes(exclude="object").columns
-
-    # preprocessing
-    preprocessor = ColumnTransformer([
+preprocessor = ColumnTransformer(
+    transformers=[
         ("num", Pipeline([
             ("imputer", SimpleImputer(strategy="median")),
             ("scaler", StandardScaler())
@@ -71,30 +65,24 @@ def train_model(df):
             ("imputer", SimpleImputer(strategy="most_frequent")),
             ("encoder", OneHotEncoder(handle_unknown="ignore"))
         ]), cat_cols)
-    ])
+    ],
+    remainder="drop"
+)
 
-    model = Pipeline([
-        ("preprocess", preprocessor),
-        ("classifier", RandomForestClassifier(
-            n_estimators=30,
-            random_state=42,
-            n_jobs=-1
-        ))
-    ])
+model = Pipeline(steps=[
+    ("preprocess", preprocessor),
+    ("classifier", RandomForestClassifier(
+        n_estimators=25,
+        random_state=42,
+        n_jobs=-1
+    ))
+])
 
-    model.fit(X, y)
-    return model, X.columns  # return feature columns also
+# ---------------- TRAIN MODEL ----------------
+model.fit(X, y)
 
-model, feature_cols = train_model(df)
-
-# ---------------- PREDICTION ----------------
-X_pred = df.drop(columns=["attack_cat"])
-X_pred = X_pred.replace("-", np.nan)
-
-# keep only trained features
-X_pred = X_pred[feature_cols]
-
-df["Predicted_Attack"] = model.predict(X_pred)
+# ---------------- PREDICT (NO EXTRA LOGIC) ----------------
+df["Predicted_Attack"] = model.predict(X)
 
 # ---------------- METRICS ----------------
 col1, col2, col3 = st.columns(3)
@@ -120,8 +108,8 @@ st.markdown(
     """
     🔐 **AI-Based Cyber Threat Prediction & Autonomous Response System**  
     - Dataset uploaded dynamically  
-    - Model trained inside the app  
-    - Robust preprocessing to avoid runtime errors  
+    - Model trained and predicted on same cleaned data  
+    - Stable preprocessing pipeline  
 
     *Academic Project*
     """
