@@ -25,7 +25,7 @@ network-based cyber attacks using AI techniques.
 ---
 
 ## 🗂️ Project Structure
-cyber_threat_project/
+**cyber_threat_project/**
 │
 ├── app.py                     # Streamlit dashboard
 ├── README.md                  # Project documentation
